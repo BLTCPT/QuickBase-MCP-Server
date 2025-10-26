@@ -541,7 +541,7 @@ export class QuickBaseClient {
     });
   }
 
-  // ========== CODEPAGE METHODS ==========
+  // ========== CODEPAGE METHODS (Table Storage) ==========
 
   async saveCodepage(tableId: string, name: string, code: string, description?: string): Promise<number> {
     const recordData: Record<string, any> = {
@@ -551,7 +551,7 @@ export class QuickBaseClient {
     if (description) {
       recordData[8] = { value: description }; // Assuming field 8 is description
     }
-    
+
     const response = await this.axios.post('/records', {
       to: tableId,
       data: [recordData]
@@ -587,6 +587,296 @@ export class QuickBaseClient {
       code,
       note: 'Code execution is not implemented for security reasons. Use the code in your application.'
     };
+  }
+
+  // ========== QUICKBASE CODEPAGE DEPLOYMENT METHODS ==========
+
+  /**
+   * Deploy code to a QuickBase built-in codepage (pageID-based)
+   * Note: This uses QuickBase's legacy API which requires special permissions
+   */
+  async deployToCodepage(appId: string, pageId: number, code: string, pageName?: string): Promise<{ success: boolean; pageId: number; url: string }> {
+    // QuickBase doesn't have a public API for managing codepages via REST API
+    // They must be managed through the UI or using the old XML API
+    // This method provides the information needed for manual deployment
+
+    const realm = this.config.realm.replace('.quickbase.com', '');
+    const codepageUrl = `https://${this.config.realm}/db/${appId}?a=dbpage&pageID=${pageId}`;
+
+    return {
+      success: false,
+      pageId: pageId,
+      url: codepageUrl,
+      instructions: {
+        message: 'QuickBase codepages must be deployed manually through the UI',
+        steps: [
+          `1. Go to https://${this.config.realm}/db/${appId}`,
+          '2. Click "Pages" → "Code Pages"',
+          `3. Create or edit pageID=${pageId}`,
+          '4. Paste the code provided',
+          '5. Save the codepage',
+          `6. Access via: ${codepageUrl}`
+        ],
+        code: code,
+        codeSize: `${Math.round(code.length / 1024)}KB`
+      }
+    } as any;
+  }
+
+  /**
+   * Test loading a codepage from QuickBase
+   * This attempts to fetch a codepage via HTTP to verify it's deployed
+   */
+  async testLoadCodepage(appId: string, pageId: number): Promise<{ success: boolean; size?: number; error?: string }> {
+    const realm = this.config.realm;
+    const codepageUrl = `https://${realm}/db/${appId}?a=dbpage&pageID=${pageId}`;
+
+    try {
+      // Use fetch to try loading the codepage
+      const axios = (await import('axios')).default;
+      const response = await axios.get(codepageUrl, {
+        headers: {
+          'User-Agent': 'QuickBase-MCP-Client/1.0'
+        },
+        maxRedirects: 0,
+        validateStatus: (status) => status < 400
+      });
+
+      const content = response.data;
+      const isJavaScript = typeof content === 'string' && (
+        content.includes('function') ||
+        content.includes('const ') ||
+        content.includes('var ') ||
+        content.includes('class ')
+      );
+
+      return {
+        success: true,
+        size: typeof content === 'string' ? content.length : 0,
+        contentType: response.headers['content-type'],
+        isJavaScript,
+        preview: typeof content === 'string' ? content.substring(0, 200) : 'Binary content'
+      } as any;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message,
+        statusCode: error.response?.status
+      } as any;
+    }
+  }
+
+  /**
+   * Test saving data from a codepage to QuickBase
+   * This simulates what a codepage would do when saving records
+   */
+  async testCodepageSave(tableId: string, testData: Record<string, any>): Promise<{ success: boolean; recordId?: number; error?: string }> {
+    try {
+      // Test with session-based auth (what codepages use)
+      const response = await this.axios.post('/records', {
+        to: tableId,
+        data: [testData]
+      });
+
+      const recordId = response.data.metadata?.createdRecordIds?.[0];
+
+      return {
+        success: true,
+        recordId,
+        message: 'Record created successfully via codepage-style save',
+        metadata: response.data.metadata
+      } as any;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message,
+        details: error.response?.data
+      } as any;
+    }
+  }
+
+  /**
+   * Validate codepage code for common issues
+   */
+  validateCodepageCode(code: string): { valid: boolean; errors: string[]; warnings: string[] } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Check for common issues
+    if (code.length === 0) {
+      errors.push('Code is empty');
+    }
+
+    if (code.length > 1000000) {
+      warnings.push(`Code is very large (${Math.round(code.length / 1024)}KB) - may cause performance issues`);
+    }
+
+    // Check for syntax errors (basic check)
+    try {
+      new Function(code);
+    } catch (e: any) {
+      errors.push(`JavaScript syntax error: ${e.message}`);
+    }
+
+    // Check for session authentication usage
+    if (code.includes('QB-USER-TOKEN') || code.includes('userToken')) {
+      warnings.push('Code contains user token references - consider using session authentication instead');
+    }
+
+    if (code.includes("credentials: 'include'")) {
+      // Good - using session auth
+    } else if (code.includes('fetch(') || code.includes('axios')) {
+      warnings.push('Code makes HTTP requests but may not be using session authentication');
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+
+  // ========== CODEPAGE DEVELOPMENT HELPERS ==========
+
+  /**
+   * Get full table schema with field information for codepage development
+   */
+  async getTableSchemaForCodepage(tableId: string): Promise<any> {
+    const fields = await this.getTableFields(tableId);
+
+    // Organize fields by type and purpose
+    const schema = {
+      tableId,
+      userFields: fields.filter((f: any) => f.mode === '' || f.mode === 'normal'),
+      lookupFields: fields.filter((f: any) => f.mode === 'lookup'),
+      formulaFields: fields.filter((f: any) => f.mode === 'formula'),
+      systemFields: fields.filter((f: any) => ['recordid', 'timestamp', 'user'].includes(f.fieldType)),
+      fieldMap: {} as Record<string, number>,
+      fieldTypes: {} as Record<number, string>
+    };
+
+    // Generate field mappings
+    fields.forEach((field: any) => {
+      const safeName = field.label.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+      schema.fieldMap[safeName] = field.id;
+      schema.fieldTypes[field.id] = field.fieldType;
+    });
+
+    return schema;
+  }
+
+  /**
+   * Generate JavaScript field mapping code for a table
+   */
+  async generateFieldMapCode(tableId: string): Promise<string> {
+    const fields = await this.getTableFields(tableId);
+
+    let code = '// QuickBase Field Mapping\n';
+    code += 'const FIELDS = {\n';
+
+    fields
+      .filter((f: any) => f.mode !== 'formula' && f.mode !== 'lookup')
+      .forEach((field: any) => {
+        const safeName = field.label
+          .replace(/[^a-zA-Z0-9]/g, '_')
+          .replace(/_+/g, '_')
+          .replace(/^_|_$/g, '')
+          .toUpperCase();
+
+        code += `  ${safeName}: ${field.id}, // ${field.label} (${field.fieldType})\n`;
+      });
+
+    code += '};\n';
+    return code;
+  }
+
+  /**
+   * Get common code snippets for codepage development
+   */
+  getCodeSnippet(snippetName: string): string {
+    const snippets: Record<string, string> = {
+      'session-auth-fetch': `// Session-authenticated fetch
+async function qbFetch(endpoint, data) {
+  const response = await fetch('https://api.quickbase.com/v1' + endpoint, {
+    method: 'POST',
+    headers: {
+      'QB-Realm-Hostname': '${this.config.realm}',
+      'Content-Type': 'application/json'
+    },
+    credentials: 'include', // Use session cookies
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
+  return await response.json();
+}`,
+
+      'create-record': `// Create a record
+const recordData = { 6: { value: 'Test' }, 7: { value: 123 } };
+const result = await qbClient.createRecords(tableId, [recordData]);
+const recordId = result.metadata.createdRecordIds[0];`,
+
+      'query-records': `// Query records
+const result = await qbClient.queryRecords(tableId, {
+  select: [3, 6, 7],
+  where: "{6.EX.'value'}",
+  top: 100
+});`,
+
+      'update-record': `// Update record
+await qbClient.updateRecords(tableId, [{
+  3: { value: recordId },
+  6: { value: 'Updated' }
+}]);`,
+
+      'delete-record': `// Delete record
+await qbClient.deleteRecords(tableId, [recordId]);`,
+
+      'error-handling': `// Error handling
+try {
+  await qbClient.createRecords(tableId, [data]);
+} catch (error) {
+  if (error.message.includes('Session expired')) {
+    alert('Please refresh the page');
+  } else {
+    console.error('Error:', error);
+  }
+}`
+    };
+
+    return snippets[snippetName] || `// Snippet '${snippetName}' not found`;
+  }
+
+  /**
+   * Test API permissions for a table
+   */
+  async testApiPermissions(tableId: string): Promise<any> {
+    const permissions = {
+      tableId,
+      canRead: false,
+      canCreate: false,
+      canUpdate: false,
+      canDelete: false,
+      canGetFields: false,
+      errors: [] as string[]
+    };
+
+    // Test read
+    try {
+      await this.getRecords(tableId, { top: 1 });
+      permissions.canRead = true;
+    } catch (error: any) {
+      permissions.errors.push(`Read: ${error.message}`);
+    }
+
+    // Test fields
+    try {
+      await this.getTableFields(tableId);
+      permissions.canGetFields = true;
+    } catch (error: any) {
+      permissions.errors.push(`Fields: ${error.message}`);
+    }
+
+    return permissions;
   }
 
   // ========== AUTH METHODS ==========

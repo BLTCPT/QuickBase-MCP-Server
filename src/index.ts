@@ -460,6 +460,139 @@ class QuickBaseMCPServer {
             };
           }
 
+          // ========== QUICKBASE CODEPAGE DEPLOYMENT TOOLS ==========
+          case 'quickbase_deploy_codepage': {
+            if (!args || typeof args !== 'object') {
+              throw new Error('Invalid arguments');
+            }
+            const result = await this.qbClient.deployToCodepage(
+              args.appId as string,
+              args.pageId as number,
+              args.code as string,
+              args.pageName as string
+            );
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2),
+                },
+              ],
+            };
+          }
+
+          case 'quickbase_test_load_codepage': {
+            if (!args || typeof args !== 'object') {
+              throw new Error('Invalid arguments');
+            }
+            const result = await this.qbClient.testLoadCodepage(
+              args.appId as string,
+              args.pageId as number
+            );
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2),
+                },
+              ],
+            };
+          }
+
+          case 'quickbase_test_codepage_save': {
+            if (!args || typeof args !== 'object') {
+              throw new Error('Invalid arguments');
+            }
+            const result = await this.qbClient.testCodepageSave(
+              args.tableId as string,
+              args.testData as Record<string, any>
+            );
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2),
+                },
+              ],
+            };
+          }
+
+          case 'quickbase_validate_codepage': {
+            if (!args || typeof args !== 'object') {
+              throw new Error('Invalid arguments');
+            }
+            const result = this.qbClient.validateCodepageCode(args.code as string);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2),
+                },
+              ],
+            };
+          }
+
+          // ========== CODEPAGE DEVELOPMENT HELPER TOOLS ==========
+          case 'quickbase_get_table_schema': {
+            if (!args || typeof args !== 'object') {
+              throw new Error('Invalid arguments');
+            }
+            const result = await this.qbClient.getTableSchemaForCodepage(args.tableId as string);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2),
+                },
+              ],
+            };
+          }
+
+          case 'quickbase_generate_field_map': {
+            if (!args || typeof args !== 'object') {
+              throw new Error('Invalid arguments');
+            }
+            const code = await this.qbClient.generateFieldMapCode(args.tableId as string);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: code,
+                },
+              ],
+            };
+          }
+
+          case 'quickbase_get_code_snippet': {
+            if (!args || typeof args !== 'object') {
+              throw new Error('Invalid arguments');
+            }
+            const snippet = this.qbClient.getCodeSnippet(args.snippetName as string);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: snippet,
+                },
+              ],
+            };
+          }
+
+          case 'quickbase_test_permissions': {
+            if (!args || typeof args !== 'object') {
+              throw new Error('Invalid arguments');
+            }
+            const result = await this.qbClient.testApiPermissions(args.tableId as string);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2),
+                },
+              ],
+            };
+          }
+
           // ========== AUTH TOOLS ==========
           case 'quickbase_initiate_oauth': {
             if (!args || typeof args !== 'object') {

@@ -169,3 +169,48 @@
     - Create user guides for codepage development and testing
     - Add troubleshooting guides and API documentation
     - _Requirements: All requirements_
+
+- [x] 13. Update CDN Hero library for session-based authentication
+  - [x] 13.1 Implement session authentication in CDN Hero library
+    - Update quickbase_codepage_hero.js to use session cookies instead of tokens
+    - Remove all token-related code and configuration requirements
+    - Add automatic credential inclusion with 'credentials: include' for all API calls
+    - Implement proper error handling for authentication failures
+    - _Requirements: 7.1, 7.2, 7.5_
+
+  - [x] 13.2 Test and validate session authentication functionality
+    - Create test cases for session-based authentication
+    - Validate that API calls work without visible tokens
+    - Test SSO compatibility and user permission inheritance
+    - Ensure authentication prompts work correctly for unauthenticated users
+    - _Requirements: 7.3, 7.4_
+
+- [x] 14. Enhance QuickBase integration testing
+  - [x] 14.1 Build comprehensive QuickBase save operation testing
+    - Create integration tests that validate actual record creation in QuickBase
+    - Implement tests for record updates and modifications
+    - Add validation for API response handling and error scenarios
+    - Create test data fixtures for consistent testing
+    - _Requirements: 8.1, 8.2, 8.4_
+
+  - [x] 14.2 Implement session authentication testing framework
+    - Build tests specifically for session-based authentication
+    - Create test scenarios for authentication success and failure cases
+    - Implement comprehensive test reporting for QuickBase operations
+    - Add performance monitoring for authentication and save operations
+    - _Requirements: 8.3, 8.5_
+
+- [x] 15. Deploy and validate updated codepage functionality
+  - [x] 15.1 Deploy updated CDN Hero library to production
+    - Update the CDN Hero library in QuickBase codepage storage
+    - Test deployment in staging environment first
+    - Validate that existing codepages continue to work with new authentication
+    - Create rollback plan in case of issues
+    - _Requirements: 7.1, 7.2, 7.5_
+
+  - [x] 15.2 Conduct end-to-end testing of codepage save functionality
+    - Test complete workflow from codepage execution to QuickBase record creation
+    - Validate that pricing calculator saves quotes correctly
+    - Test error handling and user feedback for failed save operations
+    - Generate comprehensive test report documenting all functionality
+    - _Requirements: 8.1, 8.2, 8.4, 8.5_

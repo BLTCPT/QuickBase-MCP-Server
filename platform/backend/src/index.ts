@@ -20,6 +20,8 @@ import { MonitoringService } from './services/monitoring.js';
 import { AnalyticsService } from './services/analytics.js';
 import { VersionControlService } from './services/version-control.js';
 import { DeploymentService } from './services/deployment.js';
+import { CDNDeploymentService } from './services/cdn-deployment.js';
+import { E2ETestingService } from './services/e2e-testing.js';
 
 // Import routes
 import { healthRoutes } from './routes/health.js';
@@ -56,6 +58,8 @@ const testService = new TestEnvironmentService();
 const schemaService = new SchemaService();
 const versionControlService = new VersionControlService();
 const deploymentService = new DeploymentService();
+const cdnDeploymentService = new CDNDeploymentService();
+const e2eTestingService = new E2ETestingService();
 
 // Initialize monitoring middleware
 const monitoringMiddleware = createMonitoringMiddleware(monitoringService);
@@ -128,6 +132,9 @@ app.use('/api/v1/version-control', createVersionControlRoutes(versionControlServ
 
 // Deployment routes
 app.use('/api/v1/deployment', createDeploymentRoutes(deploymentService, authService));
+
+// CDN deployment and E2E testing routes
+app.use('/api/v1/cdn-deployment', createDeploymentRoutes(cdnDeploymentService, e2eTestingService));
 
 // User information routes (for enriching change logs)
 app.get('/api/users/:userId', (req, res) => {

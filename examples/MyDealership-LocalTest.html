@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MyDealership - AI-Powered Pricing Calculator</title>
+    <title>MyDealership - Local Test (Mock Mode)</title>
     <style>
         * {
             margin: 0;
@@ -16,6 +16,16 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
+        }
+
+        .test-banner {
+            background: #ff9800;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 20px;
+            border-radius: 10px;
         }
 
         .container {
@@ -155,10 +165,6 @@
             color: #28a745;
         }
 
-        .result-value.negative {
-            color: #dc3545;
-        }
-
         .breakdown-section {
             margin-top: 40px;
             padding: 30px;
@@ -186,52 +192,6 @@
             font-weight: bold;
             font-size: 1.1em;
             color: #2c3e50;
-        }
-
-        .breakdown-label {
-            color: #495057;
-        }
-
-        .breakdown-value {
-            font-weight: 600;
-        }
-
-        .ai-insights {
-            margin-top: 40px;
-            padding: 30px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 15px;
-        }
-
-        .ai-insights h3 {
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 1.3em;
-        }
-
-        .insights-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-        }
-
-        .insight-card {
-            background: rgba(255,255,255,0.1);
-            padding: 20px;
-            border-radius: 10px;
-            -webkit-backdrop-filter: blur(10px);
-            backdrop-filter: blur(10px);
-        }
-
-        .insight-card h4 {
-            margin-bottom: 10px;
-            font-size: 1.1em;
-        }
-
-        .insight-card p {
-            opacity: 0.9;
-            line-height: 1.5;
         }
 
         .loading {
@@ -268,9 +228,49 @@
         #saveStatus.error {
             color: #dc3545;
         }
+
+        .ai-insights {
+            margin-top: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+        }
+
+        .ai-insights h3 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .insight-card {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .insight-card h4 {
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .insight-card p {
+            opacity: 0.9;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
+    <div class="test-banner">
+        🧪 LOCAL TEST MODE - Mock QuickBase API (saves will be simulated)
+    </div>
+
     <div class="container">
         <div class="header">
             <h1>🚗 MyDealership</h1>
@@ -301,17 +301,17 @@
 
                         <div class="form-group">
                             <label for="discount">Discount ($)</label>
-                            <input type="number" id="discount" placeholder="2000" min="0" step="0.01">
+                            <input type="number" id="discount" placeholder="2000" min="0" step="0.01" value="2000">
                         </div>
 
                         <div class="form-group">
                             <label for="financingRate">Financing Rate (%)</label>
-                            <input type="number" id="financingRate" placeholder="4.5" min="0" max="20" step="0.1">
+                            <input type="number" id="financingRate" placeholder="4.5" min="0" max="20" step="0.1" value="4.5">
                         </div>
 
                         <div class="form-group">
                             <label for="tradeInValue">Trade-In Value ($)</label>
-                            <input type="number" id="tradeInValue" placeholder="15000" min="0" step="0.01">
+                            <input type="number" id="tradeInValue" placeholder="15000" min="0" step="0.01" value="0">
                         </div>
 
                         <div class="form-group">
@@ -355,14 +355,12 @@
 
                         <div class="breakdown-section">
                             <h3>Detailed Breakdown</h3>
-                            <div id="breakdown">
-                                <!-- Breakdown items will be populated by JavaScript -->
-                            </div>
+                            <div id="breakdown"></div>
                         </div>
 
                         <div class="save-section">
                             <button type="button" id="saveToQB" class="calculate-btn" style="display: none;">
-                                💾 Save to QuickBase
+                                💾 Save to QuickBase (Mock)
                             </button>
                             <div id="saveStatus"></div>
                         </div>
@@ -395,174 +393,40 @@
     </div>
 
     <script>
-        // QuickBase Configuration - Update with your actual table and field IDs
-        const CONFIG = {
-            pricingTableId: 'bvhuaz8wz', // Pricing Calculator table
-            vehiclesTableId: 'bvhuaz7s5', // Vehicles table
+        // Mock QuickBase client for local testing
+        window.qbClient = {
+            mode: 'mock',
+            realm: 'localhost',
+            async createRecords(tableId, records) {
+                console.log('[Mock QB] Creating records in table:', tableId);
+                console.log('[Mock QB] Records:', records);
 
-            // App Token (only needed if using app token authentication)
-            // Get this from: Settings → App Properties → Manage App Tokens
-            // Leave empty if using temporary token authentication
-            appToken: '', // Example: 'b10b_dsds_0_ca9aj9dtjdbp8k5vgj3nnd3zb'
+                // Simulate API delay
+                await new Promise(resolve => setTimeout(resolve, 500));
 
-            // Field IDs from your schema
-            fields: {
-                relatedVehicle: 6,
-                msrp: 7,
-                discount: 8,
-                financingRate: 9,
-                tradeInValue: 10,
-                finalPrice: 11,
-                vehicleMake: 12,
-                vehicleModel: 13
+                // Return mock success response
+                return {
+                    metadata: {
+                        createdRecordIds: [Math.floor(Math.random() * 10000) + 1000],
+                        totalNumberOfRecordsProcessed: 1
+                    },
+                    data: records.map((record, index) => ({
+                        3: { value: Math.floor(Math.random() * 10000) + 1000 },
+                        ...record
+                    }))
+                };
             }
         };
 
-        // RESILIENT LOADER v2.0 - Session Authentication Strategy
-        // Strategy: (1) QuickBase code page via script tag → (2) Local file for dev
-        //           (3) Inline fallback client
-        (function loadQuickBaseClient(){
-            const IS_QB = /quickbase\.com$/i.test(location.hostname);
-            const CODEPAGE = '/db/bvhuaz7pn?a=dbpage&pageID=3'; // Codepage Hero library at pageID=3
-            const LOCAL = 'quickbase_codepage_hero.js';
+        console.log('✅ Mock QuickBase client initialized for local testing');
 
-            // Check if already loaded
-            if (typeof window.qbClient !== 'undefined' && window.qbClient.mode !== 'shim') {
-                console.log('[QB Loader] Client already loaded');
-                return;
-            }
-
-            function loadScript(src) {
-                return new Promise((resolve, reject) => {
-                    const script = document.createElement('script');
-                    script.src = src;
-                    script.onload = () => {
-                        // Check if client was successfully exported
-                        if (typeof window.qbClient !== 'undefined' && window.qbClient.mode !== 'shim') {
-                            console.log(`[QB Loader] ✓ Loaded from: ${src}`);
-                            resolve(true);
-                        } else {
-                            reject(new Error('Client not exported properly'));
-                        }
-                    };
-                    script.onerror = () => {
-                        console.warn(`[QB Loader] ✗ Failed to load: ${src}`);
-                        reject(new Error(`Failed to load ${src}`));
-                    };
-                    document.head.appendChild(script);
-                });
-            }
-
-            async function init() {
-                try {
-                    // Strategy 1: Try codepage first if in QuickBase
-                    if (IS_QB) {
-                        try {
-                            await loadScript(CODEPAGE);
-                            return;
-                        } catch (e) {
-                            console.warn('[QB Loader] Codepage failed, trying local');
-                        }
-                    }
-
-                    // Strategy 2: Try local file (for development)
-                    try {
-                        await loadScript(LOCAL);
-                        return;
-                    } catch (e) {
-                        console.warn('[QB Loader] Local file failed');
-                    }
-
-                    // Strategy 3: Fallback - inline lightweight client
-                    console.warn('[QB Loader] Using inline fallback client');
-                    window.qbClient = {
-                        mode: 'inline',
-                        realm: IS_QB ? location.hostname.split('.')[0] : 'localhost',
-                        tokenCache: new Map(),
-
-                        async getTemporaryToken(tableId) {
-                            if (this.tokenCache.has(tableId)) {
-                                const cached = this.tokenCache.get(tableId);
-                                if (Date.now() - cached.time < 300000) return cached.token;
-                            }
-
-                            const resp = await fetch(`https://api.quickbase.com/v1/auth/temporary/${tableId}`, {
-                                method: 'GET',
-                                headers: { 'QB-Realm-Hostname': `${this.realm}.quickbase.com` },
-                                credentials: 'include'
-                            });
-
-                            if (!resp.ok) throw new Error('Failed to get temp token');
-                            const data = await resp.json();
-                            this.tokenCache.set(tableId, { token: data.temporaryAuthorization, time: Date.now() });
-                            return data.temporaryAuthorization;
-                        },
-
-                        async createRecords(tableId, records) {
-                            const token = await this.getTemporaryToken(tableId);
-                            const resp = await fetch('https://api.quickbase.com/v1/records', {
-                                method: 'POST',
-                                headers: {
-                                    'Authorization': `QB-TEMP-TOKEN ${token}`,
-                                    'QB-Realm-Hostname': `${this.realm}.quickbase.com`,
-                                    'Content-Type': 'application/json'
-                                },
-                                credentials: 'omit',
-                                body: JSON.stringify({
-                                    to: tableId,
-                                    data: Array.isArray(records) ? records : [records]
-                                })
-                            });
-
-                            if (!resp.ok) {
-                                const error = await resp.text();
-                                throw new Error(`HTTP ${resp.status}: ${error}`);
-                            }
-
-                            return await resp.json();
-                        },
-
-                        async queryRecords(tableId, options = {}) {
-                            const token = await this.getTemporaryToken(tableId);
-                            const resp = await fetch('https://api.quickbase.com/v1/records/query', {
-                                method: 'POST',
-                                headers: {
-                                    'Authorization': `QB-TEMP-TOKEN ${token}`,
-                                    'QB-Realm-Hostname': `${this.realm}.quickbase.com`,
-                                    'Content-Type': 'application/json'
-                                },
-                                credentials: 'omit',
-                                body: JSON.stringify({ from: tableId, ...options })
-                            });
-
-                            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                            return await resp.json();
-                        }
-                    };
-
-                    console.log('[QB Loader] ✓ Inline client initialized');
-
-                } catch (error) {
-                    console.error('[QB Loader] Fatal error:', error);
-                    // Last resort: shim that throws helpful errors
-                    window.qbClient = {
-                        mode: 'error',
-                        createRecords: () => { throw new Error('QuickBase client failed to load. Check console for details.'); },
-                        queryRecords: () => { throw new Error('QuickBase client failed to load. Check console for details.'); }
-                    };
-                }
-            }
-
-            init();
-        })();
-
-        // Vehicle data for demo purposes
+        // Vehicle data
         const vehicleData = {
-            'toyota-camry': { make: 'Toyota', model: 'Camry', msrp: 28000, image: '🚗' },
-            'honda-civic': { make: 'Honda', model: 'Civic', msrp: 24000, image: '🚙' },
-            'ford-mustang': { make: 'Ford', model: 'Mustang', msrp: 35000, image: '🏎️' },
-            'chevrolet-silverado': { make: 'Chevrolet', model: 'Silverado', msrp: 42000, image: '🚛' },
-            'bmw-3series': { make: 'BMW', model: '3 Series', msrp: 45000, image: '🚗' }
+            'toyota-camry': { make: 'Toyota', model: 'Camry', msrp: 28000 },
+            'honda-civic': { make: 'Honda', model: 'Civic', msrp: 24000 },
+            'ford-mustang': { make: 'Ford', model: 'Mustang', msrp: 35000 },
+            'chevrolet-silverado': { make: 'Chevrolet', model: 'Silverado', msrp: 42000 },
+            'bmw-3series': { make: 'BMW', model: '3 Series', msrp: 45000 }
         };
 
         // DOM Elements
@@ -574,32 +438,7 @@
         const saveButton = document.getElementById('saveToQB');
         const saveStatus = document.getElementById('saveStatus');
 
-        // Store current calculation results
         let currentPricingData = null;
-
-        // Configure app token if provided
-        (function configureAuth() {
-            // Wait for client to be ready
-            const checkClient = setInterval(() => {
-                if (window.qbClient && window.qbClient.mode !== 'error') {
-                    clearInterval(checkClient);
-
-                    // If app token is configured, set it
-                    if (CONFIG.appToken && typeof qbClient.setAppToken === 'function') {
-                        qbClient.setAppToken(CONFIG.appToken);
-                        console.log('[MyDealership] ✅ App token configured');
-                    } else if (CONFIG.appToken) {
-                        console.warn('[MyDealership] ⚠️ App token provided but client does not support setAppToken()');
-                        console.warn('Make sure you deployed the app token version of the library');
-                    } else {
-                        console.log('[MyDealership] Using session-based authentication');
-                    }
-                }
-            }, 100);
-
-            // Timeout after 10 seconds
-            setTimeout(() => clearInterval(checkClient), 10000);
-        })();
 
         // Event Listeners
         vehicleSelect.addEventListener('change', updateVehicleMSRP);
@@ -616,32 +455,26 @@
         function calculatePricing(e) {
             e.preventDefault();
 
-            // Show loading
             loading.classList.add('show');
             results.style.display = 'none';
 
-            // Get form values
             const selectedVehicle = vehicleSelect.value;
-            const msrp = Number.parseFloat(document.getElementById('msrp').value) || 0;
-            const discount = Number.parseFloat(document.getElementById('discount').value) || 0;
-            const financingRate = Number.parseFloat(document.getElementById('financingRate').value) || 0;
-            const tradeInValue = Number.parseFloat(document.getElementById('tradeInValue').value) || 0;
-            const loanTerm = Number.parseInt(document.getElementById('loanTerm').value) || 60;
+            const msrp = parseFloat(document.getElementById('msrp').value) || 0;
+            const discount = parseFloat(document.getElementById('discount').value) || 0;
+            const financingRate = parseFloat(document.getElementById('financingRate').value) || 0;
+            const tradeInValue = parseFloat(document.getElementById('tradeInValue').value) || 0;
+            const loanTerm = parseInt(document.getElementById('loanTerm').value) || 60;
 
-            // AI-powered pricing calculation
             setTimeout(() => {
                 performPricingCalculation(selectedVehicle, msrp, discount, financingRate, tradeInValue, loanTerm);
                 loading.classList.remove('show');
                 results.style.display = 'block';
-            }, 1500); // Simulate AI processing time
+            }, 1500);
         }
 
         function performPricingCalculation(selectedVehicle, msrp, discount, financingRate, tradeInValue, loanTerm) {
-            // Base calculations
             const discountedPrice = msrp - discount;
             const adjustedPrice = discountedPrice - tradeInValue;
-
-            // Financing calculations
             const monthlyRate = financingRate / 100 / 12;
             const numPayments = loanTerm;
 
@@ -659,7 +492,6 @@
             const finalPrice = adjustedPrice + totalFinancingCost;
             const totalSavings = msrp - finalPrice;
 
-            // Store pricing data for saving
             currentPricingData = {
                 msrp,
                 discount,
@@ -674,16 +506,13 @@
                 loanTerm
             };
 
-            // Update results
             document.getElementById('finalPrice').textContent = formatCurrency(finalPrice);
             document.getElementById('monthlyPayment').textContent = formatCurrency(monthlyPayment);
             document.getElementById('totalSavings').textContent = formatCurrency(totalSavings);
             document.getElementById('financingCost').textContent = formatCurrency(totalFinancingCost);
 
-            // Update breakdown
             updateBreakdown(msrp, discount, tradeInValue, totalFinancingCost, finalPrice);
 
-            // Show save button
             saveButton.style.display = 'block';
             saveStatus.textContent = '';
             saveStatus.className = '';
@@ -724,13 +553,6 @@
             }).format(amount);
         }
 
-        // Initialize with first vehicle if available
-        if (vehicleSelect.options.length > 1) {
-            vehicleSelect.selectedIndex = 1;
-            updateVehicleMSRP();
-        }
-
-        // QuickBase Integration Functions - Updated with temp token authentication
         async function saveToQuickBase() {
             if (!currentPricingData) {
                 showSaveStatus('No pricing data to save', 'error');
@@ -738,47 +560,30 @@
             }
 
             try {
-                // Show saving status
                 saveButton.disabled = true;
-                saveButton.textContent = '💾 Saving...';
-                showSaveStatus('Saving to QuickBase...', '');
+                saveButton.textContent = '💾 Saving (Mock)...';
+                showSaveStatus('Saving to QuickBase (Mock Mode)...', '');
 
-                // Wait for client to be ready
-                let retries = 0;
-                while (!window.qbClient && retries < 50) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    retries++;
-                }
-
-                if (!window.qbClient || window.qbClient.mode === 'error') {
-                    throw new Error('QuickBase client not available. Check console for loading errors.');
-                }
-
-                // Prepare record data for QuickBase API
                 const recordData = {
-                    [CONFIG.fields.msrp]: { value: currentPricingData.msrp },
-                    [CONFIG.fields.discount]: { value: currentPricingData.discount },
-                    [CONFIG.fields.financingRate]: { value: currentPricingData.financingRate },
-                    [CONFIG.fields.tradeInValue]: { value: currentPricingData.tradeInValue },
-                    [CONFIG.fields.finalPrice]: { value: currentPricingData.finalPrice },
-                    [CONFIG.fields.vehicleMake]: { value: currentPricingData.vehicleMake },
-                    [CONFIG.fields.vehicleModel]: { value: currentPricingData.vehicleModel }
+                    7: { value: currentPricingData.msrp },
+                    8: { value: currentPricingData.discount },
+                    9: { value: currentPricingData.financingRate },
+                    10: { value: currentPricingData.tradeInValue },
+                    11: { value: currentPricingData.finalPrice },
+                    12: { value: currentPricingData.vehicleMake },
+                    13: { value: currentPricingData.vehicleModel }
                 };
 
                 console.log('[Save] Using client mode:', window.qbClient.mode);
                 console.log('[Save] Record data:', recordData);
 
-                // Use the new createRecords API
-                const result = await window.qbClient.createRecords(
-                    CONFIG.pricingTableId,
-                    [recordData]
-                );
+                const result = await window.qbClient.createRecords('bvhuaz8wz', [recordData]);
 
                 console.log('[Save] Success:', result);
 
                 if (result.metadata && result.metadata.createdRecordIds) {
                     const recordId = result.metadata.createdRecordIds[0];
-                    showSaveStatus(`✅ Saved successfully! Record ID: ${recordId}`, 'success');
+                    showSaveStatus(`✅ Saved successfully! Mock Record ID: ${recordId}`, 'success');
                 } else {
                     showSaveStatus('✅ Saved successfully! Record created.', 'success');
                 }
@@ -787,9 +592,8 @@
                 console.error('[Save] Error:', error);
                 showSaveStatus(`❌ Failed to save: ${error.message}`, 'error');
             } finally {
-                // Reset button
                 saveButton.disabled = false;
-                saveButton.textContent = '💾 Save to QuickBase';
+                saveButton.textContent = '💾 Save to QuickBase (Mock)';
             }
         }
 
@@ -798,23 +602,11 @@
             saveStatus.className = statusClass;
         }
 
-        function loadVehiclesFromQuickBase() {
-            // This would load vehicle data from QuickBase Vehicles table
-            console.log('Loading vehicles from QuickBase');
+        // Initialize
+        if (vehicleSelect.options.length > 1) {
+            vehicleSelect.selectedIndex = 1;
+            updateVehicleMSRP();
         }
-
-        function populateVehicleSelect(vehicles) {
-            const select = document.getElementById('vehicleSelect');
-            for (const vehicle of vehicles) {
-                const option = document.createElement('option');
-                option.value = vehicle.id;
-                option.textContent = `${vehicle.make} ${vehicle.model} ${vehicle.year}`;
-                select.appendChild(option);
-            }
-        }
-
-        // Load vehicles on page load (commented out for demo)
-        // loadVehiclesFromQuickBase();
     </script>
 </body>
 </html>

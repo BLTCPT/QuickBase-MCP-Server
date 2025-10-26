@@ -601,13 +601,123 @@ export const quickbaseTools: Tool[] = [
         tableId: { type: 'string', description: 'Table ID where codepages are stored' },
         recordId: { type: 'number', description: 'Record ID of the codepage' },
         functionName: { type: 'string', description: 'Name of the function to execute' },
-        parameters: { 
-          type: 'object', 
+        parameters: {
+          type: 'object',
           description: 'Parameters to pass to the function',
           additionalProperties: true
         }
       },
       required: ['tableId', 'recordId', 'functionName']
+    }
+  },
+
+  // ========== QUICKBASE CODEPAGE DEPLOYMENT TOOLS ==========
+  {
+    name: 'quickbase_deploy_codepage',
+    description: 'Get deployment instructions for QuickBase built-in codepage (pageID-based). Provides steps and code for manual deployment.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        appId: { type: 'string', description: 'QuickBase application ID (e.g., "bvhuaz7")' },
+        pageId: { type: 'number', description: 'Page ID for the codepage (e.g., 2, 3)' },
+        code: { type: 'string', description: 'JavaScript code to deploy' },
+        pageName: { type: 'string', description: 'Optional name for the codepage' }
+      },
+      required: ['appId', 'pageId', 'code']
+    }
+  },
+
+  {
+    name: 'quickbase_test_load_codepage',
+    description: 'Test if a codepage is accessible and properly deployed by attempting to load it via HTTP',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        appId: { type: 'string', description: 'QuickBase application ID' },
+        pageId: { type: 'number', description: 'Page ID of the codepage to test' }
+      },
+      required: ['appId', 'pageId']
+    }
+  },
+
+  {
+    name: 'quickbase_test_codepage_save',
+    description: 'Test saving data from a codepage to QuickBase (simulates codepage save operation)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tableId: { type: 'string', description: 'Table ID to save data to' },
+        testData: {
+          type: 'object',
+          description: 'Test record data in QuickBase format (field IDs as keys)',
+          additionalProperties: true
+        }
+      },
+      required: ['tableId', 'testData']
+    }
+  },
+
+  {
+    name: 'quickbase_validate_codepage',
+    description: 'Validate codepage code for syntax errors and best practices',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        code: { type: 'string', description: 'JavaScript code to validate' }
+      },
+      required: ['code']
+    }
+  },
+
+  // ========== CODEPAGE DEVELOPMENT HELPER TOOLS ==========
+  {
+    name: 'quickbase_get_table_schema',
+    description: 'Get full table schema organized for codepage development (user fields, lookups, formulas, field mappings)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tableId: { type: 'string', description: 'Table ID to get schema for' }
+      },
+      required: ['tableId']
+    }
+  },
+
+  {
+    name: 'quickbase_generate_field_map',
+    description: 'Generate JavaScript field mapping code for a table (creates FIELDS constant with all field IDs)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tableId: { type: 'string', description: 'Table ID to generate field map for' }
+      },
+      required: ['tableId']
+    }
+  },
+
+  {
+    name: 'quickbase_get_code_snippet',
+    description: 'Get common code snippets for codepage development (session-auth-fetch, create-record, query-records, update-record, delete-record, error-handling)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        snippetName: {
+          type: 'string',
+          description: 'Name of snippet: session-auth-fetch, create-record, query-records, update-record, delete-record, error-handling'
+        }
+      },
+      required: ['snippetName']
+    }
+  },
+
+  {
+    name: 'quickbase_test_permissions',
+    description: 'Test what API operations are allowed for a table (read, create, update, delete, get fields)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tableId: { type: 'string', description: 'Table ID to test permissions for' }
+      },
+      required: ['tableId']
     }
   },
 

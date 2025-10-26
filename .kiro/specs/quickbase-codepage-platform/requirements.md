@@ -11,7 +11,9 @@ The QuickBase Codepage Development Platform is a comprehensive system that enabl
 - **Pricing_Calculator**: A specific type of codepage that calculates vehicle pricing based on various parameters
 - **Schema_Manager**: The component responsible for managing QuickBase application table structures and relationships
 - **CDN_Hero**: The quickbase_codepage_hero.js library served via CDN for codepage functionality
+- **Session_Authentication**: Authentication method using QuickBase session cookies without requiring visible tokens
 - **Test_Environment**: A sandboxed environment for testing codepage functionality before deployment
+- **Integration_Testing**: Comprehensive testing that validates actual QuickBase save operations and API responses
 
 ## Requirements
 
@@ -86,3 +88,27 @@ The QuickBase Codepage Development Platform is a comprehensive system that enabl
 3. WHEN the developer compares versions, THE Codepage_Platform SHALL highlight differences between codepage versions
 4. WHERE multiple developers work on the same codepage, THE Codepage_Platform SHALL prevent conflicting simultaneous edits
 5. THE Codepage_Platform SHALL allow developers to revert to previous codepage versions when needed
+
+### Requirement 7
+
+**User Story:** As a dealership developer, I want to use session-based authentication for codepages without exposing tokens, so that I can maintain security while simplifying deployment.
+
+#### Acceptance Criteria
+
+1. WHEN the codepage executes, THE CDN_Hero SHALL authenticate using session cookies without requiring visible tokens
+2. WHEN the codepage makes API calls to QuickBase, THE CDN_Hero SHALL include session credentials automatically
+3. WHEN the user is not authenticated, THE CDN_Hero SHALL display appropriate authentication prompts
+4. THE CDN_Hero SHALL work seamlessly with SSO and existing QuickBase authentication systems
+5. THE CDN_Hero SHALL prevent token exposure in codepage source code or browser developer tools
+
+### Requirement 8
+
+**User Story:** As a platform administrator, I want comprehensive testing of codepage QuickBase integration, so that I can ensure all save operations work correctly before deployment.
+
+#### Acceptance Criteria
+
+1. WHEN testing codepage save operations, THE Test_Environment SHALL validate successful record creation in QuickBase
+2. WHEN testing codepage updates, THE Test_Environment SHALL verify record modifications are applied correctly
+3. WHEN testing authentication, THE Test_Environment SHALL confirm session-based authentication works properly
+4. WHEN testing fails, THE Test_Environment SHALL provide detailed error information including QuickBase API responses
+5. THE Test_Environment SHALL generate comprehensive test reports showing all QuickBase operations and their results

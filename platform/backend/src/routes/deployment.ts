@@ -1,794 +1,420 @@
-import { Router, Request, Response } from 'express';
-import { z } from 'zod';
-import {
-  DeploymentService,
-  DeploymentRecord,
-  CreateEnvironmentSchema,
-  CreateDeploymentSchema,
-  CreatePipelineSchema,
-  RollbackSchema,
-  ApprovalSchema
-} from '../services/deployment.js';
-import { AuthMiddleware } from '../middleware/auth.js';
-import { AuthService, UserRole } from '../services/auth.js';
-import { asyncHandler, validateBody, validateQuery } from '../middleware/index.js';
-
-// Local type definition (will be replaced with shared types in future tasks)
-type ApiResponse<T = any> = {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: any;
-    timestamp: string;
-    requestId: string;
-  };
-  meta?: {
-    page?: number;
-    limit?: number;
-    total?: number;
-    hasMore?: boolean;
-  };
-};
-
-// Query validation schemas
-const GetDeploymentsSchema = z.object({
-  projectId: z.string().optional(),
-  environmentId: z.string().optional(),
-  status: z.string().optional(),
-  limit: z.coerce.number().min(1).max(100).default(20),
-  page: z.coerce.number().min(1).default(1),
-});
-
-const DeployToPipelineSchema = z.object({
-  versionId: z.string(),
-});
+import express from 'express';
+import { CDNDeploymentService, CDNDeploymentConfigSchema } from '../services/cdn-deployment.js';
+import { E2ETestingService, E2ETestConfigSchema } from '../services/e2e-testing.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 export function createDeploymentRoutes(
-  deploymentService: DeploymentService, 
-  authService: AuthService
-): Router {
-  const router = Router();
-  const authMiddleware = new AuthMiddleware(authService);
+  cdnDeploymentService: CDNDeploymentService,
+  e2eTestingService: E2ETestingService
+): express.Router {
+  const router = express.Router();
 
-  // All deployment routes require authentication
-  router.use(authMiddleware.authenticate);
+  // Apply authentication middleware to all routes
+  router.use(authMiddleware);
 
-  // Environment management routes
+  /**
+   * POST /deployment/cdn/deploy
+   * Deploy updated CDN Hero library to production
+   */
+  router.post('/cdn/deploy', async (req, res) => {
+    try {
+      const config = CDNDeploymentConfigSchema.parse(req.body);
+      
+      console.log(`🚀 CDN deployment requested by user ${req.user?.id}`);
+      console.log(`📋 Environment: ${config.environment}, Version: ${config.version}`);
 
-  // GET /environments - Get all environments
-  router.get('/environments',
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const environments = await deploymentService.getEnvironments();
+      const result = await cdnDeploymentService.deployUpdatedCDNHero(config);
 
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            environments,
-          },
-          meta: {
-            total: environments.length,
-          },
-        };
+      res.status(201).json({
+        success: true,
+        data: result,
+        message: `CDN Hero library v${config.version} deployment ${result.success ? 'completed' : 'failed'}`
+      });
 
-        res.json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
+    } catch (error: any) {
+      console.error('❌ CDN deployment failed:', error);
+      
+      if (error.name === 'ZodError') {
+        return res.status(400).json({
           success: false,
           error: {
-            code: 'FETCH_ENVIRONMENTS_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
-
-        res.status(400).json(response);
-      }
-    })
-  );
-
-  // POST /environments - Create new environment (admin only)
-  router.post('/environments',
-    authMiddleware.requireRole(UserRole.ADMIN),
-    validateBody(CreateEnvironmentSchema),
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const user = req.user!;
-        const environment = await deploymentService.createEnvironment(req.body, user.id);
-
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            environment,
-          },
-        };
-
-        res.status(201).json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
-          success: false,
-          error: {
-            code: 'CREATE_ENVIRONMENT_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
-
-        res.status(400).json(response);
-      }
-    })
-  );
-
-  // GET /environments/:environmentId - Get specific environment
-  router.get('/environments/:environmentId',
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const { environmentId } = req.params;
-        const environment = await deploymentService.getEnvironment(environmentId);
-
-        if (!environment) {
-          const response: ApiResponse = {
-            success: false,
-            error: {
-              code: 'ENVIRONMENT_NOT_FOUND',
-              message: 'Environment not found',
-              timestamp: new Date().toISOString(),
-              requestId: req.headers['x-request-id']?.toString() || 'unknown',
-            },
-          };
-
-          res.status(404).json(response);
-          return;
-        }
-
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            environment,
-          },
-        };
-
-        res.json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
-          success: false,
-          error: {
-            code: 'FETCH_ENVIRONMENT_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
-
-        res.status(400).json(response);
-      }
-    })
-  );
-
-  // PUT /environments/:environmentId - Update environment (admin only)
-  router.put('/environments/:environmentId',
-    authMiddleware.requireRole(UserRole.ADMIN),
-    validateBody(CreateEnvironmentSchema.partial()),
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const { environmentId } = req.params;
-        const user = req.user!;
-        
-        const environment = await deploymentService.updateEnvironment(
-          environmentId, 
-          req.body, 
-          user.id
-        );
-
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            environment,
-          },
-        };
-
-        res.json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
-          success: false,
-          error: {
-            code: 'UPDATE_ENVIRONMENT_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
-
-        res.status(400).json(response);
-      }
-    })
-  );
-
-  // DELETE /environments/:environmentId - Delete environment (admin only)
-  router.delete('/environments/:environmentId',
-    authMiddleware.requireRole(UserRole.ADMIN),
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const { environmentId } = req.params;
-        const user = req.user!;
-        
-        await deploymentService.deleteEnvironment(environmentId, user.id);
-
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            message: 'Environment deleted successfully',
-          },
-        };
-
-        res.json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
-          success: false,
-          error: {
-            code: 'DELETE_ENVIRONMENT_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
-
-        res.status(400).json(response);
-      }
-    })
-  );
-
-  // Deployment management routes
-
-  // GET /deployments - Get deployments
-  router.get('/deployments',
-    validateQuery(GetDeploymentsSchema),
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const { projectId, environmentId, status, limit, page } = req.query as any;
-
-        let deployments: DeploymentRecord[];
-        if (projectId) {
-          deployments = await deploymentService.getProjectDeployments(projectId, environmentId);
-        } else if (environmentId) {
-          deployments = await deploymentService.getEnvironmentDeployments(environmentId);
-        } else {
-          // Get all deployments (admin/manager only)
-          const user = req.user!;
-          if (!authService.hasPermission(user.role, UserRole.MANAGER)) {
-            const response: ApiResponse = {
-              success: false,
-              error: {
-                code: 'FORBIDDEN',
-                message: 'Insufficient permissions to view all deployments',
-                timestamp: new Date().toISOString(),
-                requestId: req.headers['x-request-id']?.toString() || 'unknown',
-              },
-            };
-
-            res.status(403).json(response);
-            return;
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid deployment configuration',
+            details: error.errors
           }
-          
-          deployments = []; // Would get all deployments in real implementation
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'DEPLOYMENT_ERROR',
+          message: error.message || 'CDN deployment failed'
         }
+      });
+    }
+  });
 
-        // Apply status filter
-        if (status) {
-          deployments = deployments.filter(d => d.status === status);
+  /**
+   * POST /deployment/cdn/validate
+   * Validate CDN Hero library before deployment
+   */
+  router.post('/cdn/validate', async (req, res) => {
+    try {
+      console.log(`🔍 CDN validation requested by user ${req.user?.id}`);
+
+      const validation = await cdnDeploymentService.validateCDNHeroLibrary();
+
+      res.json({
+        success: true,
+        data: validation,
+        message: validation.isValid ? 'CDN Hero library validation passed' : 'CDN Hero library validation failed'
+      });
+
+    } catch (error: any) {
+      console.error('❌ CDN validation failed:', error);
+      
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: error.message || 'CDN validation failed'
         }
+      });
+    }
+  });
 
-        // Apply pagination
-        const startIndex = (page - 1) * limit;
-        const endIndex = startIndex + limit;
-        const paginatedDeployments = deployments.slice(startIndex, endIndex);
+  /**
+   * POST /deployment/cdn/rollback
+   * Rollback CDN Hero library to previous version
+   */
+  router.post('/cdn/rollback', async (req, res) => {
+    try {
+      const { deploymentId, reason } = req.body;
 
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            deployments: paginatedDeployments,
-          },
-          meta: {
-            page,
-            limit,
-            total: deployments.length,
-            hasMore: endIndex < deployments.length,
-          },
-        };
-
-        res.json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
+      if (!deploymentId || !reason) {
+        return res.status(400).json({
           success: false,
           error: {
-            code: 'FETCH_DEPLOYMENTS_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
-
-        res.status(400).json(response);
+            code: 'VALIDATION_ERROR',
+            message: 'Deployment ID and reason are required'
+          }
+        });
       }
-    })
-  );
 
-  // POST /deployments - Create new deployment
-  router.post('/deployments',
-    authMiddleware.requireRole(UserRole.DEVELOPER),
-    validateBody(CreateDeploymentSchema),
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const user = req.user!;
-        const deployment = await deploymentService.createDeployment(
-          req.body,
-          user.id,
-          user.name || user.email
-        );
+      console.log(`🔄 CDN rollback requested by user ${req.user?.id}`);
+      console.log(`📋 Deployment ID: ${deploymentId}, Reason: ${reason}`);
 
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            deployment,
-          },
-        };
+      const result = await cdnDeploymentService.rollbackCDNHero(deploymentId, reason);
 
-        res.status(201).json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
-          success: false,
-          error: {
-            code: 'CREATE_DEPLOYMENT_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
+      res.json({
+        success: true,
+        data: result,
+        message: 'CDN Hero library rollback completed successfully'
+      });
 
-        res.status(400).json(response);
-      }
-    })
-  );
-
-  // GET /deployments/:deploymentId - Get specific deployment
-  router.get('/deployments/:deploymentId',
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const { deploymentId } = req.params;
-        const deployment = await deploymentService.getDeployment(deploymentId);
-
-        if (!deployment) {
-          const response: ApiResponse = {
-            success: false,
-            error: {
-              code: 'DEPLOYMENT_NOT_FOUND',
-              message: 'Deployment not found',
-              timestamp: new Date().toISOString(),
-              requestId: req.headers['x-request-id']?.toString() || 'unknown',
-            },
-          };
-
-          res.status(404).json(response);
-          return;
+    } catch (error: any) {
+      console.error('❌ CDN rollback failed:', error);
+      
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'ROLLBACK_ERROR',
+          message: error.message || 'CDN rollback failed'
         }
+      });
+    }
+  });
 
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            deployment,
-          },
-        };
+  /**
+   * GET /deployment/cdn/history
+   * Get CDN deployment history
+   */
+  router.get('/cdn/history', async (req, res) => {
+    try {
+      const history = cdnDeploymentService.getDeploymentHistory();
 
-        res.json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
-          success: false,
-          error: {
-            code: 'FETCH_DEPLOYMENT_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
+      res.json({
+        success: true,
+        data: history,
+        count: history.length,
+        message: 'CDN deployment history retrieved successfully'
+      });
 
-        res.status(400).json(response);
-      }
-    })
-  );
-
-  // GET /projects/:projectId/environments/:environmentId/current - Get current deployment
-  router.get('/projects/:projectId/environments/:environmentId/current',
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const { projectId, environmentId } = req.params;
-        const deployment = await deploymentService.getCurrentDeployment(projectId, environmentId);
-
-        if (!deployment) {
-          const response: ApiResponse = {
-            success: false,
-            error: {
-              code: 'NO_CURRENT_DEPLOYMENT',
-              message: 'No current deployment found for this project/environment',
-              timestamp: new Date().toISOString(),
-              requestId: req.headers['x-request-id']?.toString() || 'unknown',
-            },
-          };
-
-          res.status(404).json(response);
-          return;
+    } catch (error: any) {
+      console.error('❌ Failed to get CDN deployment history:', error);
+      
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'HISTORY_ERROR',
+          message: error.message || 'Failed to retrieve deployment history'
         }
+      });
+    }
+  });
 
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            deployment,
-          },
-        };
+  /**
+   * GET /deployment/cdn/:deploymentId
+   * Get specific CDN deployment details
+   */
+  router.get('/cdn/:deploymentId', async (req, res) => {
+    try {
+      const { deploymentId } = req.params;
+      const deployment = cdnDeploymentService.getDeployment(deploymentId);
 
-        res.json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
+      if (!deployment) {
+        return res.status(404).json({
           success: false,
           error: {
-            code: 'FETCH_CURRENT_DEPLOYMENT_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
-
-        res.status(400).json(response);
+            code: 'NOT_FOUND',
+            message: 'Deployment not found'
+          }
+        });
       }
-    })
-  );
 
-  // Rollback routes
+      res.json({
+        success: true,
+        data: deployment,
+        message: 'Deployment details retrieved successfully'
+      });
 
-  // POST /deployments/:deploymentId/rollback - Rollback deployment
-  router.post('/deployments/:deploymentId/rollback',
-    authMiddleware.requireRole(UserRole.DEVELOPER),
-    validateBody(RollbackSchema.omit({ deploymentId: true })),
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const { deploymentId } = req.params;
-        const user = req.user!;
-        
-        const rollbackInput = {
-          deploymentId,
-          ...req.body,
-        };
-
-        const rollbackDeployment = await deploymentService.rollbackDeployment(
-          rollbackInput,
-          user.id,
-          user.name || user.email
-        );
-
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            deployment: rollbackDeployment,
-          },
-        };
-
-        res.status(201).json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
-          success: false,
-          error: {
-            code: 'ROLLBACK_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
-
-        res.status(400).json(response);
-      }
-    })
-  );
-
-  // Pipeline management routes
-
-  // GET /pipelines - Get pipelines for project
-  router.get('/pipelines',
-    validateQuery(z.object({ projectId: z.string() })),
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const { projectId } = req.query as any;
-        const pipelines = await deploymentService.getProjectPipelines(projectId);
-
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            pipelines,
-          },
-          meta: {
-            total: pipelines.length,
-          },
-        };
-
-        res.json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
-          success: false,
-          error: {
-            code: 'FETCH_PIPELINES_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
-
-        res.status(400).json(response);
-      }
-    })
-  );
-
-  // POST /pipelines - Create new pipeline
-  router.post('/pipelines',
-    authMiddleware.requireRole(UserRole.DEVELOPER),
-    validateBody(CreatePipelineSchema),
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const user = req.user!;
-        const pipeline = await deploymentService.createPipeline(req.body, user.id);
-
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            pipeline,
-          },
-        };
-
-        res.status(201).json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
-          success: false,
-          error: {
-            code: 'CREATE_PIPELINE_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
-
-        res.status(400).json(response);
-      }
-    })
-  );
-
-  // GET /pipelines/:pipelineId - Get specific pipeline
-  router.get('/pipelines/:pipelineId',
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const { pipelineId } = req.params;
-        const pipeline = await deploymentService.getPipeline(pipelineId);
-
-        if (!pipeline) {
-          const response: ApiResponse = {
-            success: false,
-            error: {
-              code: 'PIPELINE_NOT_FOUND',
-              message: 'Pipeline not found',
-              timestamp: new Date().toISOString(),
-              requestId: req.headers['x-request-id']?.toString() || 'unknown',
-            },
-          };
-
-          res.status(404).json(response);
-          return;
+    } catch (error: any) {
+      console.error('❌ Failed to get deployment details:', error);
+      
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'DEPLOYMENT_ERROR',
+          message: error.message || 'Failed to retrieve deployment details'
         }
+      });
+    }
+  });
 
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            pipeline,
-          },
-        };
+  /**
+   * POST /deployment/test/e2e
+   * Conduct end-to-end testing of codepage save functionality
+   */
+  router.post('/test/e2e', async (req, res) => {
+    try {
+      const config = E2ETestConfigSchema.parse(req.body);
+      
+      console.log(`🧪 E2E testing requested by user ${req.user?.id}`);
+      console.log(`📋 Environment: ${config.testEnvironment}, Table ID: ${config.testTableId}`);
 
-        res.json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
+      // Start E2E testing (this is a long-running operation)
+      const testSuite = await e2eTestingService.conductE2ECodepageSaveTesting(config);
+
+      res.status(201).json({
+        success: true,
+        data: testSuite,
+        message: `E2E testing completed with ${testSuite.overallStatus} status`
+      });
+
+    } catch (error: any) {
+      console.error('❌ E2E testing failed:', error);
+      
+      if (error.name === 'ZodError') {
+        return res.status(400).json({
           success: false,
           error: {
-            code: 'FETCH_PIPELINE_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
-
-        res.status(400).json(response);
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid test configuration',
+            details: error.errors
+          }
+        });
       }
-    })
-  );
 
-  // POST /pipelines/:pipelineId/deploy - Deploy to pipeline
-  router.post('/pipelines/:pipelineId/deploy',
-    authMiddleware.requireRole(UserRole.DEVELOPER),
-    validateBody(DeployToPipelineSchema),
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const { pipelineId } = req.params;
-        const { versionId } = req.body;
-        const user = req.user!;
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'TESTING_ERROR',
+          message: error.message || 'E2E testing failed'
+        }
+      });
+    }
+  });
 
-        const deployments = await deploymentService.deployToPipeline(
-          pipelineId,
-          versionId,
-          user.id,
-          user.name || user.email
-        );
+  /**
+   * GET /deployment/test/results
+   * Get all E2E test results
+   */
+  router.get('/test/results', async (req, res) => {
+    try {
+      const results = e2eTestingService.getAllTestResults();
 
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            deployments,
-          },
-        };
+      res.json({
+        success: true,
+        data: results,
+        count: results.length,
+        message: 'E2E test results retrieved successfully'
+      });
 
-        res.status(201).json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
+    } catch (error: any) {
+      console.error('❌ Failed to get E2E test results:', error);
+      
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'RESULTS_ERROR',
+          message: error.message || 'Failed to retrieve test results'
+        }
+      });
+    }
+  });
+
+  /**
+   * GET /deployment/test/results/:suiteId
+   * Get specific E2E test suite results
+   */
+  router.get('/test/results/:suiteId', async (req, res) => {
+    try {
+      const { suiteId } = req.params;
+      const testSuite = e2eTestingService.getTestResults(suiteId);
+
+      if (!testSuite) {
+        return res.status(404).json({
           success: false,
           error: {
-            code: 'DEPLOY_TO_PIPELINE_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
-
-        res.status(400).json(response);
+            code: 'NOT_FOUND',
+            message: 'Test suite not found'
+          }
+        });
       }
-    })
-  );
 
-  // Approval management routes
+      res.json({
+        success: true,
+        data: testSuite,
+        message: 'Test suite results retrieved successfully'
+      });
 
-  // GET /approvals - Get pending approvals for user
-  router.get('/approvals',
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const user = req.user!;
-        const approvals = await deploymentService.getPendingApprovals(user.id);
+    } catch (error: any) {
+      console.error('❌ Failed to get test suite results:', error);
+      
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'RESULTS_ERROR',
+          message: error.message || 'Failed to retrieve test suite results'
+        }
+      });
+    }
+  });
 
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            approvals,
-          },
-          meta: {
-            total: approvals.length,
-          },
-        };
+  /**
+   * POST /deployment/test/pricing-calculator
+   * Test pricing calculator save functionality specifically
+   */
+  router.post('/test/pricing-calculator', async (req, res) => {
+    try {
+      const { testTableId, testEnvironment = 'staging' } = req.body;
 
-        res.json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
+      if (!testTableId) {
+        return res.status(400).json({
           success: false,
           error: {
-            code: 'FETCH_APPROVALS_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
-
-        res.status(400).json(response);
+            code: 'VALIDATION_ERROR',
+            message: 'Test table ID is required'
+          }
+        });
       }
-    })
-  );
 
-  // POST /approvals/:approvalId - Process approval
-  router.post('/approvals/:approvalId',
-    authMiddleware.requireRole(UserRole.MANAGER),
-    validateBody(ApprovalSchema),
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const { approvalId } = req.params;
-        const { action, reason } = req.body;
-        const user = req.user!;
+      console.log(`💰 Pricing calculator testing requested by user ${req.user?.id}`);
 
-        const approval = await deploymentService.processApproval(
-          approvalId,
-          action,
-          user.id,
-          reason
-        );
+      // Create a focused test configuration for pricing calculator
+      const config = {
+        testEnvironment: testEnvironment as 'staging' | 'production',
+        testTableId,
+        testTimeout: 30000,
+        cleanupAfterTest: true,
+        generateReport: true
+      };
 
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            approval,
-          },
-        };
+      // Run only the pricing calculator test
+      const testSuite = await e2eTestingService.conductE2ECodepageSaveTesting(config);
+      
+      // Filter to only pricing calculator related tests
+      const pricingTests = testSuite.tests.filter(test => 
+        test.testName.toLowerCase().includes('pricing')
+      );
 
-        res.json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
-          success: false,
-          error: {
-            code: 'PROCESS_APPROVAL_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
+      res.json({
+        success: true,
+        data: {
+          ...testSuite,
+          tests: pricingTests,
+          focusedTest: 'pricing-calculator'
+        },
+        message: 'Pricing calculator testing completed successfully'
+      });
 
-        res.status(400).json(response);
-      }
-    })
-  );
+    } catch (error: any) {
+      console.error('❌ Pricing calculator testing failed:', error);
+      
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'TESTING_ERROR',
+          message: error.message || 'Pricing calculator testing failed'
+        }
+      });
+    }
+  });
 
-  // Statistics and monitoring routes
+  /**
+   * GET /deployment/status
+   * Get overall deployment and testing status
+   */
+  router.get('/status', async (req, res) => {
+    try {
+      const cdnHistory = cdnDeploymentService.getDeploymentHistory();
+      const testResults = e2eTestingService.getAllTestResults();
 
-  // GET /stats - Get deployment statistics
-  router.get('/stats',
-    validateQuery(z.object({ projectId: z.string().optional() })),
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const { projectId } = req.query as any;
-        const stats = await deploymentService.getDeploymentStats(projectId);
+      const latestCDNDeployment = cdnHistory[0];
+      const latestTestSuite = testResults[0];
 
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            stats,
-          },
-        };
+      const status = {
+        cdn: {
+          latestDeployment: latestCDNDeployment,
+          totalDeployments: cdnHistory.length,
+          successfulDeployments: cdnHistory.filter(d => d.success).length,
+          failedDeployments: cdnHistory.filter(d => !d.success).length
+        },
+        testing: {
+          latestTestSuite: latestTestSuite,
+          totalTestSuites: testResults.length,
+          passedSuites: testResults.filter(s => s.overallStatus === 'passed').length,
+          failedSuites: testResults.filter(s => s.overallStatus === 'failed').length,
+          errorSuites: testResults.filter(s => s.overallStatus === 'error').length
+        },
+        overall: {
+          systemHealthy: latestCDNDeployment?.success && latestTestSuite?.overallStatus === 'passed',
+          lastActivity: Math.max(
+            latestCDNDeployment?.deployedAt.getTime() || 0,
+            latestTestSuite?.startTime.getTime() || 0
+          )
+        }
+      };
 
-        res.json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
-          success: false,
-          error: {
-            code: 'FETCH_DEPLOYMENT_STATS_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
+      res.json({
+        success: true,
+        data: status,
+        message: 'Deployment and testing status retrieved successfully'
+      });
 
-        res.status(400).json(response);
-      }
-    })
-  );
-
-  // GET /environment-status - Get environment health status
-  router.get('/environment-status',
-    asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const status = await deploymentService.getEnvironmentStatus();
-
-        const response: ApiResponse = {
-          success: true,
-          data: {
-            environments: status,
-          },
-        };
-
-        res.json(response);
-      } catch (error: any) {
-        const response: ApiResponse = {
-          success: false,
-          error: {
-            code: 'FETCH_ENVIRONMENT_STATUS_FAILED',
-            message: error.message,
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id']?.toString() || 'unknown',
-          },
-        };
-
-        res.status(400).json(response);
-      }
-    })
-  );
+    } catch (error: any) {
+      console.error('❌ Failed to get deployment status:', error);
+      
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'STATUS_ERROR',
+          message: error.message || 'Failed to retrieve deployment status'
+        }
+      });
+    }
+  });
 
   return router;
 }

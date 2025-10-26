@@ -1,26 +1,93 @@
 # QuickBase MCP Server
 
-A comprehensive QuickBase development toolkit consisting of:
+**AI-Powered QuickBase Development Toolkit**
 
-1. **MCP Server** - Model Context Protocol server for AI-assisted QuickBase operations
-2. **Codepage Development Platform** - Web-based IDE for creating and deploying QuickBase codepages
+A comprehensive QuickBase development toolkit with MCP (Model Context Protocol) integration for building, testing, and deploying QuickBase codepages using AI assistance.
+
+## 🚀 Quick Links
+
+- [📖 **Codepage Development Guide**](CODEPAGE_DEVELOPMENT_GUIDE.md) - Complete guide for developing codepages
+- [🛠️ **MCP Tools Documentation**](CODEPAGE_MCP_TOOLS.md) - All MCP tools reference
+- [💡 **Example Application**](examples/MyDealership.html) - Full-featured pricing calculator
+- [🔒 **Hero Library**](quickbase_codepage_hero.js) - Session-auth client library
 
 ## Overview
 
-This repository provides three powerful tools for QuickBase development:
+This repository provides a complete toolkit for QuickBase codepage development:
 
-### 1. MCP Server
-A Model Context Protocol server that provides maximum flexibility for QuickBase operations through AI assistants like Claude. Create tables, add fields, modify relationships, and perform all QuickBase operations through MCP tools.
+### 1. MCP Server with Codepage Development Tools
 
-### 2. QuickBase Codepage Hero
-A lightweight JavaScript library for building interactive QuickBase codepages. Deploy as a single codepage and use across all your QuickBase applications. **Now with v2.2 featuring pure session authentication - NO TOKENS REQUIRED!** ⭐
+**NEW!** AI-assisted codepage development with specialized MCP tools:
 
-[📖 **Codepage Guide**](CLAUDE.md) | [🚀 **Deployment**](DEPLOYMENT.md) | [💡 **Example**](MyDealership.html) | [🔒 **Secure Version**](quickbase_codepage_hero_session.js)
+- ✅ **Schema Discovery** - Get table schemas, generate field maps
+- ✅ **Code Generation** - Common code snippets and patterns
+- ✅ **Validation** - Syntax checking and best practices
+- ✅ **Testing** - Permission testing, load testing, save testing
+- ✅ **Deployment** - Step-by-step deployment instructions
+
+**All accessible through Claude Code and other MCP clients!**
+
+[🛠️ **MCP Tools Guide**](CODEPAGE_MCP_TOOLS.md) | [📖 **Development Guide**](CODEPAGE_DEVELOPMENT_GUIDE.md)
+
+### 2. QuickBase Codepage Hero Library
+
+A lightweight JavaScript library (v2.2) for building interactive QuickBase codepages with **pure session authentication - NO TOKENS REQUIRED!** ⭐
+
+- 🔒 **Zero Tokens** - Uses session cookies only
+- 🎯 **Simple API** - Clean CRUD operations
+- 🔄 **Auto Retry** - Built-in error handling
+- 📦 **Zero Dependencies** - Pure JavaScript
+
+[📖 **API Reference**](CLAUDE.md) | [🚀 **Quick Start**](#quick-start)
 
 ### 3. Codepage Development Platform
-A complete web-based development environment for creating, testing, and deploying QuickBase codepages with minimal technical expertise. Built for dealership staff and business users to develop interactive applications like pricing calculators.
 
-[📖 **Platform Documentation**](platform/README.md) | [🚀 **Quick Start**](platform/README.md#-quick-start)
+A complete web-based IDE for creating and deploying QuickBase codepages with minimal technical expertise.
+
+[📖 **Platform Docs**](platform/README.md)
+
+---
+
+## 🎯 New MCP Tools for Codepage Development
+
+The MCP server now includes 8+ specialized tools for codepage development:
+
+### Schema & Discovery
+- `quickbase_get_table_schema` - Get organized table schema
+- `quickbase_generate_field_map` - Generate field mapping code
+
+### Code Generation
+- `quickbase_get_code_snippet` - Get common code patterns
+
+### Testing & Validation
+- `quickbase_validate_codepage` - Validate JavaScript syntax
+- `quickbase_test_permissions` - Test API permissions
+- `quickbase_test_load_codepage` - Verify deployment
+- `quickbase_test_codepage_save` - Test save operations
+
+### Deployment
+- `quickbase_deploy_codepage` - Get deployment instructions
+
+**Example Usage**:
+```bash
+# Get table schema for development
+quickbase_get_table_schema --tableId "bvhuaz8wz"
+
+# Generate field mapping code
+quickbase_generate_field_map --tableId "bvhuaz8wz"
+
+# Validate your codepage
+quickbase_validate_codepage --code "$(cat my-codepage.html)"
+
+# Get deployment instructions
+quickbase_deploy_codepage --appId "bvhuaz7" --pageId 2 --code "$(cat my-codepage.html)"
+```
+
+**Test the Tools**:
+```bash
+npm run build
+node test-all-mcp-tools.js
+```
 
 ---
 

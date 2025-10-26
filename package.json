@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "dev": "tsc --skipLibCheck --watch & node --watch dist/index.js",
     "test": "node test-basic-api.js",
+    "test:session": "node test-session-auth.js",
     "test:jest": "jest",
     "setup": "node setup.js",
     "prepublishOnly": "npm run build && npm run test",
@@ -27,17 +28,19 @@
     "zod": "^3.22.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "jest": "^29.0.0",
     "@types/jest": "^29.0.0",
-    "ts-jest": "^29.0.0"
+    "@types/node": "^20.0.0",
+    "jest": "^29.0.0",
+    "jsdom": "^27.0.1",
+    "node-fetch": "^3.3.2",
+    "ts-jest": "^29.0.0",
+    "typescript": "^5.0.0"
   },
   "keywords": [
-    "mcp", 
-    "quickbase", 
-    "api", 
-    "database", 
+    "mcp",
+    "quickbase",
+    "api",
+    "database",
     "model-context-protocol",
     "automation",
     "integration",
@@ -61,4 +64,4 @@
   "publishConfig": {
     "access": "public"
   }
-} 
+}

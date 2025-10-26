@@ -101,6 +101,24 @@ interface CodepageAPI {
 - WebSocket support for real-time collaboration
 - Redis for session management and caching
 
+**CDN Hero Library Updates:**
+```javascript
+// New session-based authentication approach
+const qbClient = {
+  async makeRequest(endpoint, options = {}) {
+    return fetch(`https://api.quickbase.com/v1/${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'QB-Realm-Hostname': 'vibe.quickbase.com',
+        ...options.headers
+      },
+      credentials: 'include'  // Key change: use session cookies
+    });
+  }
+};
+```
+
 **Core Services:**
 
 **Codepage Service:**
@@ -373,11 +391,23 @@ interface MockQuickBaseAPI {
 }
 ```
 
+**Integration Testing:**
+```typescript
+interface QuickBaseIntegrationTest {
+  testSessionAuthentication(): Promise<TestResult>;
+  testRecordCreation(tableId: string, data: any): Promise<TestResult>;
+  testRecordUpdate(tableId: string, recordId: number, data: any): Promise<TestResult>;
+  validateAPIResponses(): Promise<ValidationResult>;
+  generateIntegrationReport(): Promise<TestReport>;
+}
+```
+
 **Test Data Management:**
 - Fixture files for consistent test data
 - Database seeding for integration tests
 - Snapshot testing for UI components
 - Performance baseline tracking
+- Real QuickBase API testing with dedicated test tables
 
 ### Continuous Testing
 
@@ -425,6 +455,12 @@ enum UserRole {
 - XSS protection with Content Security Policy
 
 ### Codepage Security
+
+**Session-Based Authentication:**
+- Pure session authentication using QuickBase cookies
+- Zero token exposure in codepage source code
+- Automatic credential inclusion with `credentials: 'include'`
+- SSO compatibility and user permission inheritance
 
 **Sandbox Execution:**
 - VM2 isolation for codepage execution
