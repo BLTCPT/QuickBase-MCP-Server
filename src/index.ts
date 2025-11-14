@@ -460,6 +460,169 @@ class QuickBaseMCPServer {
             };
           }
 
+          case 'quickbase_update_codepage': {
+            if (!args || typeof args !== 'object') {
+              throw new Error('Invalid arguments');
+            }
+            const updatedRecordId = await this.qbClient.updateCodepage(
+              args.tableId as string,
+              args.recordId as number,
+              {
+                code: args.code as string,
+                description: args.description as string,
+                version: args.version as string,
+                active: args.active as boolean
+              }
+            );
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Codepage ${args.recordId} updated successfully`,
+                },
+              ],
+            };
+          }
+
+          case 'quickbase_search_codepages': {
+            if (!args || typeof args !== 'object') {
+              throw new Error('Invalid arguments');
+            }
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(await this.qbClient.searchCodepages(
+                    args.tableId as string,
+                    {
+                      name: args.name as string,
+                      tags: args.tags as string[],
+                      targetTable: args.targetTable as string,
+                      active: args.active as boolean,
+                      limit: args.limit as number
+                    }
+                  ), null, 2),
+                },
+              ],
+            };
+          }
+
+          case 'quickbase_clone_codepage': {
+            if (!args || typeof args !== 'object') {
+              throw new Error('Invalid arguments');
+            }
+            const clonedRecordId = await this.qbClient.cloneCodepage(
+              args.tableId as string,
+              args.recordId as number,
+              args.newName as string,
+              args.modifications as Record<string, any>
+            );
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Codepage cloned successfully with new record ID: ${clonedRecordId}`,
+                },
+              ],
+            };
+          }
+
+          case 'quickbase_export_codepage': {
+            if (!args || typeof args !== 'object') {
+              throw new Error('Invalid arguments');
+            }
+            const exported = await this.qbClient.exportCodepage(
+              args.tableId as string,
+              args.recordId as number,
+              args.format as 'html' | 'json' | 'markdown'
+            );
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: exported,
+                },
+              ],
+            };
+          }
+
+          case 'quickbase_import_codepage': {
+            if (!args || typeof args !== 'object') {
+              throw new Error('Invalid arguments');
+            }
+            const importedRecordId = await this.qbClient.importCodepage(
+              args.tableId as string,
+              args.source as string,
+              args.name as string,
+              args.format as 'html' | 'json' | 'markdown' | 'auto'
+            );
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Codepage imported successfully with record ID: ${importedRecordId}`,
+                },
+              ],
+            };
+          }
+
+          case 'quickbase_save_codepage_version': {
+            if (!args || typeof args !== 'object') {
+              throw new Error('Invalid arguments');
+            }
+            const versionRecordId = await this.qbClient.saveCodepageVersion(
+              args.tableId as string,
+              args.recordId as number,
+              args.versionNumber as string,
+              args.notes as string
+            );
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Version ${args.versionNumber} saved successfully with record ID: ${versionRecordId}`,
+                },
+              ],
+            };
+          }
+
+          case 'quickbase_get_codepage_versions': {
+            if (!args || typeof args !== 'object') {
+              throw new Error('Invalid arguments');
+            }
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(await this.qbClient.getCodepageVersions(
+                    args.tableId as string,
+                    args.recordId as number,
+                    args.limit as number
+                  ), null, 2),
+                },
+              ],
+            };
+          }
+
+          case 'quickbase_rollback_codepage': {
+            if (!args || typeof args !== 'object') {
+              throw new Error('Invalid arguments');
+            }
+            await this.qbClient.rollbackCodepage(
+              args.tableId as string,
+              args.recordId as number,
+              args.versionNumber as string
+            );
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Codepage rolled back to version ${args.versionNumber} successfully`,
+                },
+              ],
+            };
+          }
+
           // ========== QUICKBASE CODEPAGE DEPLOYMENT TOOLS ==========
           case 'quickbase_deploy_codepage': {
             if (!args || typeof args !== 'object') {

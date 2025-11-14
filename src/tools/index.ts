@@ -611,6 +611,139 @@ export const quickbaseTools: Tool[] = [
     }
   },
 
+  {
+    name: 'quickbase_update_codepage',
+    description: 'Update an existing codepage with new code, description, version, or active status',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tableId: { type: 'string', description: 'Table ID where codepages are stored' },
+        recordId: { type: 'number', description: 'Record ID of the codepage to update' },
+        code: { type: 'string', description: 'Updated JavaScript code' },
+        description: { type: 'string', description: 'Updated description' },
+        version: { type: 'string', description: 'Version number (e.g., "1.2.0")' },
+        active: { type: 'boolean', description: 'Whether the codepage is active' }
+      },
+      required: ['tableId', 'recordId']
+    }
+  },
+
+  {
+    name: 'quickbase_search_codepages',
+    description: 'Search for codepages by name, tags, target table, or active status',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tableId: { type: 'string', description: 'Table ID where codepages are stored' },
+        name: { type: 'string', description: 'Search by codepage name' },
+        tags: { type: 'array', items: { type: 'string' }, description: 'Filter by tags' },
+        targetTable: { type: 'string', description: 'Filter by target table ID' },
+        active: { type: 'boolean', description: 'Filter by active status' },
+        limit: { type: 'number', description: 'Maximum number of results' }
+      },
+      required: ['tableId']
+    }
+  },
+
+  {
+    name: 'quickbase_clone_codepage',
+    description: 'Clone an existing codepage with optional modifications',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tableId: { type: 'string', description: 'Table ID where codepages are stored' },
+        recordId: { type: 'number', description: 'Record ID of the codepage to clone' },
+        newName: { type: 'string', description: 'Name for the cloned codepage' },
+        modifications: {
+          type: 'object',
+          description: 'Optional modifications to apply to the clone',
+          additionalProperties: true
+        }
+      },
+      required: ['tableId', 'recordId', 'newName']
+    }
+  },
+
+  {
+    name: 'quickbase_export_codepage',
+    description: 'Export a codepage in HTML, JSON, or Markdown format',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tableId: { type: 'string', description: 'Table ID where codepages are stored' },
+        recordId: { type: 'number', description: 'Record ID of the codepage to export' },
+        format: {
+          type: 'string',
+          enum: ['html', 'json', 'markdown'],
+          description: 'Export format'
+        }
+      },
+      required: ['tableId', 'recordId', 'format']
+    }
+  },
+
+  {
+    name: 'quickbase_import_codepage',
+    description: 'Import a codepage from an external source',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tableId: { type: 'string', description: 'Table ID where codepages are stored' },
+        source: { type: 'string', description: 'Source URL or file path' },
+        name: { type: 'string', description: 'Name for the imported codepage' },
+        format: {
+          type: 'string',
+          enum: ['html', 'json', 'markdown', 'auto'],
+          description: 'Format of the source (auto-detect if not specified)'
+        }
+      },
+      required: ['tableId', 'source', 'name']
+    }
+  },
+
+  {
+    name: 'quickbase_save_codepage_version',
+    description: 'Save a version snapshot of a codepage for version control',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tableId: { type: 'string', description: 'Table ID where codepages are stored' },
+        recordId: { type: 'number', description: 'Record ID of the codepage' },
+        versionNumber: { type: 'string', description: 'Version number (e.g., "1.0.0")' },
+        notes: { type: 'string', description: 'Version notes or changelog' }
+      },
+      required: ['tableId', 'recordId', 'versionNumber']
+    }
+  },
+
+  {
+    name: 'quickbase_get_codepage_versions',
+    description: 'Get version history for a codepage',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tableId: { type: 'string', description: 'Table ID where codepages are stored' },
+        recordId: { type: 'number', description: 'Record ID of the codepage' },
+        limit: { type: 'number', description: 'Maximum number of versions to return' }
+      },
+      required: ['tableId', 'recordId']
+    }
+  },
+
+  {
+    name: 'quickbase_rollback_codepage',
+    description: 'Rollback a codepage to a previous version',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tableId: { type: 'string', description: 'Table ID where codepages are stored' },
+        recordId: { type: 'number', description: 'Record ID of the codepage' },
+        versionNumber: { type: 'string', description: 'Version number to rollback to' }
+      },
+      required: ['tableId', 'recordId', 'versionNumber']
+    }
+  },
+
   // ========== QUICKBASE CODEPAGE DEPLOYMENT TOOLS ==========
   {
     name: 'quickbase_deploy_codepage',

@@ -887,7 +887,7 @@ try {
     const realm = this.config.realm;
     const scope = scopes.join(' ');
     const state = Math.random().toString(36).substring(2);
-    
+
     const params = new URLSearchParams({
       client_id: clientId,
       response_type: 'code',
@@ -897,5 +897,268 @@ try {
     });
 
     return `https://${realm}/oauth2/authorize?${params.toString()}`;
+  }
+
+  // ========== ENHANCED CODEPAGE MANAGEMENT METHODS ==========
+
+  /**
+   * Update an existing codepage
+   */
+  async updateCodepage(
+    tableId: string,
+    recordId: number,
+    updates: { code?: string; description?: string; version?: string; active?: boolean }
+  ): Promise<number> {
+    const recordData: Record<string, any> = {
+      3: { value: recordId } // Record ID field
+    };
+
+    if (updates.code !== undefined) {
+      recordData[7] = { value: updates.code }; // Code field
+    }
+    if (updates.description !== undefined) {
+      recordData[8] = { value: updates.description }; // Description field
+    }
+    if (updates.version !== undefined) {
+      recordData[9] = { value: updates.version }; // Version field (if exists)
+    }
+    if (updates.active !== undefined) {
+      recordData[10] = { value: updates.active }; // Active field (if exists)
+    }
+
+    await this.updateRecord(tableId, recordId, recordData);
+    return recordId;
+  }
+
+  /**
+   * Search for codepages with filters
+   */
+  async searchCodepages(
+    tableId: string,
+    filters: {
+      name?: string;
+      tags?: string[];
+      targetTable?: string;
+      active?: boolean;
+      limit?: number;
+    }
+  ): Promise<any[]> {
+    const whereClauses: string[] = [];
+
+    if (filters.name) {
+      whereClauses.push(`{6.CT.'${filters.name}'}`); // Search in name field
+    }
+
+    if (filters.tags && filters.tags.length > 0) {
+      const tagConditions = filters.tags.map(tag => `{11.CT.'${tag}'}`).join('OR');
+      whereClauses.push(`(${tagConditions})`);
+    }
+
+    if (filters.targetTable) {
+      whereClauses.push(`{12.EX.'${filters.targetTable}'}`); // Target table field
+    }
+
+    if (filters.active !== undefined) {
+      whereClauses.push(`{10.EX.'${filters.active ? 'true' : 'false'}'}`);
+    }
+
+    const where = whereClauses.length > 0 ? whereClauses.join('AND') : undefined;
+
+    return this.getRecords(tableId, {
+      where,
+      top: filters.limit || 100
+    });
+  }
+
+  /**
+   * Clone an existing codepage
+   */
+  async cloneCodepage(
+    tableId: string,
+    recordId: number,
+    newName: string,
+    modifications?: Record<string, any>
+  ): Promise<number> {
+    // Get the original codepage
+    const original = await this.getCodepage(tableId, recordId);
+
+    // Create new record data
+    const recordData: Record<string, any> = {
+      6: { value: newName }, // New name
+      7: { value: original['7']?.value }, // Copy code
+      8: { value: original['8']?.value || `Cloned from ${original['6']?.value}` } // Description
+    };
+
+    // Apply modifications if provided
+    if (modifications) {
+      Object.entries(modifications).forEach(([key, value]) => {
+        recordData[key] = { value };
+      });
+    }
+
+    const response = await this.axios.post('/records', {
+      to: tableId,
+      data: [recordData]
+    });
+
+    return response.data.metadata.createdRecordIds[0];
+  }
+
+  /**
+   * Export a codepage in different formats
+   */
+  async exportCodepage(
+    tableId: string,
+    recordId: number,
+    format: 'html' | 'json' | 'markdown'
+  ): Promise<string> {
+    const codepage = await this.getCodepage(tableId, recordId);
+    const name = codepage['6']?.value || 'Untitled';
+    const code = codepage['7']?.value || '';
+    const description = codepage['8']?.value || '';
+
+    switch (format) {
+      case 'html':
+        return `<!DOCTYPE html>
+<html>
+<head>
+  <title>${name}</title>
+  <meta name="description" content="${description}">
+</head>
+<body>
+  <script>
+${code}
+  </script>
+</body>
+</html>`;
+
+      case 'json':
+        return JSON.stringify({
+          name,
+          description,
+          code,
+          recordId,
+          tableId,
+          exportedAt: new Date().toISOString()
+        }, null, 2);
+
+      case 'markdown':
+        return `# ${name}
+
+${description}
+
+## Code
+
+\`\`\`javascript
+${code}
+\`\`\`
+
+---
+*Exported from QuickBase table ${tableId}, record ${recordId}*`;
+
+      default:
+        throw new Error(`Unknown format: ${format}`);
+    }
+  }
+
+  /**
+   * Import a codepage from external source
+   */
+  async importCodepage(
+    tableId: string,
+    source: string,
+    name: string,
+    format: 'html' | 'json' | 'markdown' | 'auto' = 'auto'
+  ): Promise<number> {
+    let code = '';
+    let description = '';
+
+    // For now, treat source as raw code
+    // In a real implementation, you'd fetch from URL or parse file
+    if (format === 'json' || (format === 'auto' && source.trim().startsWith('{'))) {
+      const parsed = JSON.parse(source);
+      code = parsed.code;
+      description = parsed.description || '';
+    } else if (format === 'html' || (format === 'auto' && source.includes('<script'))) {
+      // Extract code from script tags
+      const scriptMatch = source.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+      code = scriptMatch ? scriptMatch[1].trim() : source;
+    } else {
+      // Assume raw JavaScript or markdown
+      code = source;
+    }
+
+    return this.saveCodepage(tableId, name, code, description);
+  }
+
+  /**
+   * Save a version snapshot of a codepage
+   */
+  async saveCodepageVersion(
+    tableId: string,
+    recordId: number,
+    versionNumber: string,
+    notes?: string
+  ): Promise<number> {
+    // Get current codepage
+    const codepage = await this.getCodepage(tableId, recordId);
+
+    // Create version record (assuming there's a versions table)
+    // For now, we'll store it in the same table with a special marker
+    const versionData: Record<string, any> = {
+      6: { value: `${codepage['6']?.value} - v${versionNumber}` },
+      7: { value: codepage['7']?.value },
+      8: { value: notes || `Version ${versionNumber}` },
+      9: { value: versionNumber },
+      13: { value: recordId } // Original codepage ID
+    };
+
+    const response = await this.axios.post('/records', {
+      to: tableId,
+      data: [versionData]
+    });
+
+    return response.data.metadata.createdRecordIds[0];
+  }
+
+  /**
+   * Get version history for a codepage
+   */
+  async getCodepageVersions(
+    tableId: string,
+    recordId: number,
+    limit?: number
+  ): Promise<any[]> {
+    return this.getRecords(tableId, {
+      where: `{13.EX.'${recordId}'}`, // Versions linked to this codepage
+      top: limit || 50,
+      sortBy: [{ fieldId: 1, order: 'DESC' }] // Sort by date created, newest first
+    });
+  }
+
+  /**
+   * Rollback a codepage to a previous version
+   */
+  async rollbackCodepage(
+    tableId: string,
+    recordId: number,
+    versionNumber: string
+  ): Promise<void> {
+    // Find the version record
+    const versions = await this.getRecords(tableId, {
+      where: `{13.EX.'${recordId}'}AND{9.EX.'${versionNumber}'}`
+    });
+
+    if (versions.length === 0) {
+      throw new Error(`Version ${versionNumber} not found`);
+    }
+
+    const versionRecord = versions[0];
+
+    // Update the main codepage with the version's code
+    await this.updateCodepage(tableId, recordId, {
+      code: versionRecord['7']?.value,
+      version: versionNumber
+    });
   }
 } 

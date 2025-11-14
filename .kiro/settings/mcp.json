@@ -1,0 +1,42 @@
+{
+  "mcpServers": {
+    "quickbase": {
+      "command": "node",
+      "args": [
+        "/Users/mark2/Documents/QB-MCP/QuickBase-MCP-Server/dist/index.js"
+      ],
+      "env": {
+        "QB_REALM": "vibe.quickbase.com",
+        "QB_USER_TOKEN": "${QB_USER_TOKEN}",
+        "QB_APP_ID": "bvhuaz7"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "quickbase_get_tables",
+        "quickbase_get_app_info",
+        "quickbase_test_connection",
+        "quickbase_get_table_info",
+        "quickbase_get_table_fields",
+        "quickbase_query_records",
+        "quickbase_get_record",
+        "quickbase_get_reports",
+        "quickbase_run_report",
+        "quickbase_search_records",
+        "quickbase_get_relationships",
+        "quickbase_get_relationship_details",
+        "quickbase_list_codepages",
+        "quickbase_get_codepage",
+        "quickbase_search_codepages",
+        "quickbase_get_codepage_versions",
+        "quickbase_export_codepage",
+        "quickbase_get_table_schema",
+        "quickbase_generate_field_map",
+        "quickbase_get_code_snippet",
+        "quickbase_validate_codepage",
+        "quickbase_test_permissions",
+        "quickbase_test_load_codepage",
+        "quickbase_deploy_codepage"
+      ]
+    }
+  }
+}
